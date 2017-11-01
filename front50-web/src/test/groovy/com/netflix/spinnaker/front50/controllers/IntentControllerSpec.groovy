@@ -17,8 +17,6 @@
 package com.netflix.spinnaker.front50.controllers
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.netflix.spinnaker.front50.exceptions.DuplicateEntityException
-import com.netflix.spinnaker.front50.exceptions.InvalidRequestException
 import com.netflix.spinnaker.front50.model.intent.Intent
 import com.netflix.spinnaker.front50.model.intent.IntentDAO
 import spock.lang.Specification
@@ -34,7 +32,7 @@ class IntentControllerSpec extends Specification {
     objectMapper:  new ObjectMapper(),
   )
 
-  def "should reject creation of intent with the same id"() {
+  def "should update intent if exists"() {
     given:
     def intent = new Intent(
       id: "ahoymatey",
@@ -59,17 +57,18 @@ class IntentControllerSpec extends Specification {
 
     when:
     intentDAO.all() >> { [oldIntent] }
-    controller.save(intent)
+    Intent updatedIntent = controller.upsert(intent)
 
     then:
-    thrown(DuplicateEntityException)
+    noExceptionThrown()
+    updatedIntent == intent
+
   }
 
-  def "should reject update of intent where id is different"() {
+  def "should create intent if it doesn't exist"() {
     given:
-    def id = "ahoymatey"
     def intent = new Intent(
-      id: "arr arr",
+      id: "ahoymatey",
       kind: "Parrot",
       schema: "1",
       spec: [
@@ -78,22 +77,13 @@ class IntentControllerSpec extends Specification {
       ],
       status: "ACTIVE"
     )
-    def oldIntent = new Intent(
-      id: "ahoymatey",
-      kind: "Parrot",
-      schema: "1",
-      spec: [
-        application: "keel",
-        deescription: "ahoy"
-      ],
-      status: "ACTIVE"
-    )
 
     when:
-    intentDAO.findById(id) >> { [oldIntent] }
-    controller.update(id, intent)
+    intentDAO.all() >> { }
+    Intent createdIntent = controller.upsert(intent)
 
     then:
-    thrown(InvalidRequestException)
+    noExceptionThrown()
+    createdIntent == intent
   }
 }
